@@ -7,4 +7,9 @@ router = DefaultRouter()
 urlpatterns = [
     path('', views.api_root, name='api-root'),
     path('health/', views.health_check, name='health-check'),
+    
+    # Authentication routes
+    path('auth/signup/', views.SignupView.as_view(), name='auth-signup'),
+    path('auth/login/', views.LoginView.as_view(), name='auth-login'),
+    path('auth/logout/', views.LogoutView.as_view(), name='auth-logout'),
 ] + router.urls
