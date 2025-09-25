@@ -1,5 +1,5 @@
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
@@ -163,3 +163,28 @@ class LogoutView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class MeView(APIView):
+    """
+    Current user details endpoint.
+    
+    Returns details of the current user based on the provided JWT token.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="Get Current User",
+        description="Get details of the current user based on the JWT token provided in the request",
+        responses={
+            200: OpenApiResponse(
+                response=UserSerializer,
+                description="Current user details"
+            ),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['Authentication']
+    )
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
