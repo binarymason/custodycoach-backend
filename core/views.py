@@ -3,14 +3,20 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse
+from .models import Event, Participant, Label
 from .serializers import (
     UserSignupSerializer, 
     UserLoginSerializer, 
     TokenResponseSerializer,
     UserSerializer,
-    LogoutSerializer
+    LogoutSerializer,
+    EventSerializer,
+    EventListSerializer,
+    ParticipantSerializer,
+    LabelSerializer
 )
 
 
@@ -188,3 +194,169 @@ class MeView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class EventViewSet(ModelViewSet):
+    """
+    ViewSet for managing Events.
+    
+    Provides CRUD operations for events belonging to the authenticated user.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Return events for the current user only."""
+        return Event.objects.filter(user=self.request.user).prefetch_related(
+            'participants', 'labels'
+        )
+    
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action."""
+        if self.action == 'list':
+            return EventListSerializer
+        return EventSerializer
+    
+    def perform_create(self, serializer):
+        """Set the user to the current user when creating an event."""
+        serializer.save(user=self.request.user)
+    
+    @extend_schema(
+        summary="List Events",
+        description="List all events for the authenticated user",
+        responses={
+            200: OpenApiResponse(
+                response=EventListSerializer(many=True),
+                description="List of user's events"
+            ),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['Events']
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+    
+    @extend_schema(
+        summary="Create Event",
+        description="Create a new event for the authenticated user",
+        request=EventSerializer,
+        responses={
+            201: OpenApiResponse(
+                response=EventSerializer,
+                description="Event created successfully"
+            ),
+            400: OpenApiResponse(description="Validation error"),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['Events']
+    )
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+    
+    @extend_schema(
+        summary="Get Event Details",
+        description="Get full details of a specific event",
+        responses={
+            200: OpenApiResponse(
+                response=EventSerializer,
+                description="Event details"
+            ),
+            404: OpenApiResponse(description="Event not found"),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['Events']
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+    
+    @extend_schema(
+        summary="Update Event",
+        description="Update an existing event (partial update supported)",
+        request=EventSerializer,
+        responses={
+            200: OpenApiResponse(
+                response=EventSerializer,
+                description="Event updated successfully"
+            ),
+            400: OpenApiResponse(description="Validation error"),
+            404: OpenApiResponse(description="Event not found"),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['Events']
+    )
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+    
+    @extend_schema(
+        summary="Delete Event",
+        description="Delete an existing event",
+        responses={
+            204: OpenApiResponse(description="Event deleted successfully"),
+            404: OpenApiResponse(description="Event not found"),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['Events']
+    )
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+
+
+class ParticipantViewSet(ModelViewSet):
+    """
+    ViewSet for managing Participants.
+    
+    Provides CRUD operations for participants that can be associated with events.
+    """
+    queryset = Participant.objects.all()
+    serializer_class = ParticipantSerializer
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(tags=['Participants'])
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+    
+    @extend_schema(tags=['Participants'])
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+    
+    @extend_schema(tags=['Participants'])
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+    
+    @extend_schema(tags=['Participants'])
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+    
+    @extend_schema(tags=['Participants'])
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+
+
+class LabelViewSet(ModelViewSet):
+    """
+    ViewSet for managing Labels.
+    
+    Provides CRUD operations for labels that can be associated with events.
+    """
+    queryset = Label.objects.all()
+    serializer_class = LabelSerializer
+    permission_classes = [IsAuthenticated]
+    
+    @extend_schema(tags=['Labels'])
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+    
+    @extend_schema(tags=['Labels'])
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+    
+    @extend_schema(tags=['Labels'])
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+    
+    @extend_schema(tags=['Labels'])
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+    
+    @extend_schema(tags=['Labels'])
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
