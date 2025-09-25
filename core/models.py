@@ -37,18 +37,11 @@ class Event(models.Model):
     """
     Model for custody coaching events.
     """
-    IMPACT_CHOICES = [
-        ('low', 'Low'),
-        ('medium', 'Medium'),
-        ('high', 'High'),
-        ('critical', 'Critical'),
-    ]
-    
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
-    impact = models.CharField(max_length=10, choices=IMPACT_CHOICES, default='medium')
+    impact = models.CharField(max_length=100, blank=True, null=True)
     
     # User who created the event
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='events')

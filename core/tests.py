@@ -406,6 +406,27 @@ class EventAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('End date must be after start date', str(response.data))
     
+    def test_create_event_with_custom_impact_string(self):
+        """Test POST /api/events - Create event with custom impact string."""
+        now = timezone.now()
+        event_data = {
+            'title': 'Event with Custom Impact',
+            'description': 'Testing custom impact values',
+            'start_date': (now + timedelta(days=3)).isoformat(),
+            'end_date': (now + timedelta(days=3, hours=1)).isoformat(),
+            'impact': 'Very High Priority - Urgent Response Required'
+        }
+        
+        response = self.client.post(self.events_url, event_data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['title'], 'Event with Custom Impact')
+        self.assertEqual(response.data['impact'], 'Very High Priority - Urgent Response Required')
+        
+        # Verify event was created in database with custom impact
+        event = Event.objects.get(id=response.data['id'])
+        self.assertEqual(event.impact, 'Very High Priority - Urgent Response Required')
+    
     def test_get_event_detail(self):
         """Test GET /api/events/:id - Get event details."""
         url = reverse('event-detail', kwargs={'pk': self.event1.id})
