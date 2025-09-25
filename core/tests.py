@@ -57,6 +57,7 @@ class AuthenticationTest(APITestCase):
         self.signup_url = reverse('auth-signup')
         self.login_url = reverse('auth-login')
         self.logout_url = reverse('auth-logout')
+        self.me_url = reverse('auth-me')
         
         self.valid_user_data = {
             'email': 'test@example.com',
@@ -203,6 +204,69 @@ class AuthenticationTest(APITestCase):
         refresh_token = login_response.data['refresh']
         
         # 3. Logout
+        logout_data = {'refresh': refresh_token}
+        logout_response = self.client.post(self.logout_url, logout_data, format='json')
+        self.assertEqual(logout_response.status_code, status.HTTP_200_OK)
+
+    def test_me_endpoint_authenticated(self):
+        """Test GET /api/auth/me with valid JWT token."""
+        # Create user and get access token
+        user = User.objects.create_user(
+            username='test@example.com',
+            email='test@example.com',
+            password='testpassword123'
+        )
+        
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        
+        # Make authenticated request
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access_token}')
+        response = self.client.get(self.me_url)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('id', response.data)
+        self.assertIn('email', response.data)
+        self.assertIn('username', response.data)
+        self.assertIn('date_joined', response.data)
+        self.assertEqual(response.data['email'], 'test@example.com')
+        self.assertEqual(response.data['username'], 'test@example.com')
+        self.assertEqual(response.data['id'], user.id)
+
+    def test_me_endpoint_unauthenticated(self):
+        """Test GET /api/auth/me without authentication."""
+        response = self.client.get(self.me_url)
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_me_endpoint_invalid_token(self):
+        """Test GET /api/auth/me with invalid JWT token."""
+        # Use invalid token
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer invalid_token')
+        response = self.client.get(self.me_url)
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_complete_auth_flow_with_me(self):
+        """Test complete flow: signup -> login -> me -> logout."""
+        # 1. Signup
+        signup_response = self.client.post(self.signup_url, self.valid_user_data, format='json')
+        self.assertEqual(signup_response.status_code, status.HTTP_201_CREATED)
+        
+        # 2. Login
+        login_response = self.client.post(self.login_url, self.login_data, format='json')
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+        
+        access_token = login_response.data['access']
+        refresh_token = login_response.data['refresh']
+        
+        # 3. Get current user info
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access_token}')
+        me_response = self.client.get(self.me_url)
+        self.assertEqual(me_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(me_response.data['email'], 'test@example.com')
+        
+        # 4. Logout
         logout_data = {'refresh': refresh_token}
         logout_response = self.client.post(self.logout_url, logout_data, format='json')
         self.assertEqual(logout_response.status_code, status.HTTP_200_OK)
