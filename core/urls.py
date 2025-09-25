@@ -4,6 +4,11 @@ from . import views
 
 router = DefaultRouter()
 
+# Register ViewSets with the router
+router.register(r'events', views.EventViewSet, basename='event')
+router.register(r'participants', views.ParticipantViewSet)
+router.register(r'labels', views.LabelViewSet)
+
 urlpatterns = [
     path('', views.api_root, name='api-root'),
     path('health/', views.health_check, name='health-check'),

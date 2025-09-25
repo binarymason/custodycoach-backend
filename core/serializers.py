@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
+from .models import Event, Participant, Label
 
 
 class UserSignupSerializer(serializers.ModelSerializer):
@@ -114,3 +115,83 @@ class LogoutSerializer(serializers.Serializer):
             RefreshToken(self.token).blacklist()
         except Exception as e:
             raise serializers.ValidationError("Invalid token.")
+
+
+class LabelSerializer(serializers.ModelSerializer):
+    """Serializer for Label model."""
+    
+    class Meta:
+        model = Label
+        fields = ('id', 'name', 'color', 'created_at')
+        read_only_fields = ('id', 'created_at')
+
+
+class ParticipantSerializer(serializers.ModelSerializer):
+    """Serializer for Participant model."""
+    
+    class Meta:
+        model = Participant
+        fields = ('id', 'name', 'email', 'role', 'created_at')
+        read_only_fields = ('id', 'created_at')
+
+
+class EventSerializer(serializers.ModelSerializer):
+    """Serializer for Event model."""
+    participants = ParticipantSerializer(many=True, read_only=True)
+    labels = LabelSerializer(many=True, read_only=True)
+    participant_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Participant.objects.all(), 
+        many=True, 
+        write_only=True, 
+        required=False,
+        source='participants'
+    )
+    label_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Label.objects.all(), 
+        many=True, 
+        write_only=True, 
+        required=False,
+        source='labels'
+    )
+    user = serializers.StringRelatedField(read_only=True)
+    
+    class Meta:
+        model = Event
+        fields = (
+            'id', 'title', 'description', 'start_date', 'end_date', 
+            'impact', 'user', 'participants', 'labels', 
+            'participant_ids', 'label_ids', 'created_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'user', 'created_at', 'updated_at')
+    
+    def validate(self, attrs):
+        """Validate that end_date is after start_date."""
+        start_date = attrs.get('start_date')
+        end_date = attrs.get('end_date')
+        
+        if start_date and end_date and end_date <= start_date:
+            raise serializers.ValidationError("End date must be after start date.")
+        
+        return attrs
+
+
+class EventListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for Event list view."""
+    participants_count = serializers.SerializerMethodField()
+    labels_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Event
+        fields = (
+            'id', 'title', 'start_date', 'end_date', 'impact', 
+            'participants_count', 'labels_count', 'created_at'
+        )
+        read_only_fields = fields
+    
+    def get_participants_count(self, obj):
+        """Return count of participants."""
+        return obj.participants.count()
+    
+    def get_labels_count(self, obj):
+        """Return count of labels."""
+        return obj.labels.count()
